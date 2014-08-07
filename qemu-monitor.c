@@ -38,7 +38,6 @@ static void launch_qemu(void)
         "-net", "tap,ifname=tap0,script=no,downscript=no",
         "-net", "nic,model=virtio",
         "-monitor", "unix:" MONITOR_SOCK ",server,nowait",
-        "-snapshot",
         NULL
     };
 
