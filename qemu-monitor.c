@@ -37,6 +37,7 @@ static void launch_qemu(void)
         "-drive", "file=/home/simon/.local/share/vm/sbc.raw,if=virtio,index=0,media=disk,cache=none",
         "-net", "tap,ifname=tap0,script=no,downscript=no",
         "-net", "nic,model=virtio",
+        "-rtc", "base=localtime",
         "-monitor", "unix:" MONITOR_SOCK ",server,nowait",
         NULL
     };
@@ -47,7 +48,6 @@ static void launch_qemu(void)
 
 static void shutdown_qemu(void)
 {
-    socklen_t sa_len;
     union {
         struct sockaddr sa;
         struct sockaddr_un un;
