@@ -73,19 +73,23 @@ static void shutdown_qemu(void)
     close(fd);
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
     pid_t pid = fork();
     if (pid < 0) {
         err(1, "failed to fork");
     } else if (pid == 0) {
+        setpgid(0, 0);
         close(0);
         close(1);
         close(2);
-        setpgid(0, 0);
 
         launch_qemu();
     }
+
+    /* Needed twice to guarantee the child gets its own process group.
+     * In case the parent is scheduled before the child */
+    setpgid(pid, pid);
 
     int signalfd = create_signalfd(SIGTERM, SIGINT, SIGQUIT, SIGCHLD);
     struct signalfd_siginfo si;
