@@ -70,7 +70,7 @@ static void shutdown_qemu(void)
 int main(void)
 {
     sigset_t mask;
-    make_sigset(&mask, SIGCHLD, SIGTERM, SIGINT, SIGQUIT);
+    make_sigset(&mask, SIGCHLD, SIGTERM, SIGINT, SIGQUIT, 0);
 
     if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
         err(1, "failed to set sigprocmask");
