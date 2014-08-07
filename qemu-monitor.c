@@ -12,22 +12,17 @@
 #define MONITOR_SOCK "/run/user/1000/monitor"
 #define SHUTDOWN_CMD "system_powerdown"
 
-static int create_signalfd(int signum, ...)
+static void make_sigset(sigset_t *mask, ...)
 {
     va_list ap;
-    sigset_t mask;
+    int signum;
 
-    sigemptyset(&mask);
-    sigaddset(&mask, signum);
+    sigemptyset(mask);
 
-    va_start(ap, signum);
+    va_start(ap, mask);
     while ((signum = va_arg(ap, int)))
-        sigaddset(&mask, signum);
+        sigaddset(mask, signum);
     va_end(ap);
-
-    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
-        return -1;
-    return signalfd(-1, &mask, SFD_CLOEXEC);
 }
 
 static void launch_qemu(void)
@@ -75,11 +70,20 @@ static void shutdown_qemu(void)
 
 int main(void)
 {
+    sigset_t mask;
+    make_sigset(&mask, SIGCHLD, SIGTERM, SIGINT, SIGQUIT);
+
+    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
+        err(1, "failed to set sigprocmask");
+
     pid_t pid = fork();
     if (pid < 0) {
         err(1, "failed to fork");
     } else if (pid == 0) {
         setpgid(0, 0);
+        if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0)
+            err(1, "failed to set sigprocmask");
+
         close(0);
         close(1);
         close(2);
@@ -91,11 +95,14 @@ int main(void)
      * In case the parent is scheduled before the child */
     setpgid(pid, pid);
 
-    int signalfd = create_signalfd(SIGTERM, SIGINT, SIGQUIT, SIGCHLD);
-    struct signalfd_siginfo si;
+    int sfd = signalfd(-1, &mask, SFD_CLOEXEC);
+    if (sfd < 0)
+        err(1, "failed to create signalfd");
 
     for (;;) {
-        ssize_t nbytes_r = read(signalfd, &si, sizeof(si));
+        struct signalfd_siginfo si;
+
+        ssize_t nbytes_r = read(sfd, &si, sizeof(si));
         if (nbytes_r < 0)
             err(EXIT_FAILURE, "failed to read signal");
 
