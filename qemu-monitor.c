@@ -110,7 +110,7 @@ int main(void)
         case SIGINT:
         case SIGTERM:
         case SIGQUIT:
-            printf("Sending vm ACPI halt signal\n");
+            printf("Sending ACPI halt signal to vm...\n");
             fflush(stdout);
             shutdown_qemu();
             break;
