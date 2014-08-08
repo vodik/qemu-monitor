@@ -4,14 +4,9 @@
 
 #define WHITESPACE " \t"
 
-static size_t skip_whitespace(const char *s)
-{
-    return strspn(s, WHITESPACE);
-}
-
 static char *strstripped(const char *s, size_t length)
 {
-    size_t skipped = skip_whitespace(s);
+    size_t skipped = strspn(s, WHITESPACE);
     char *p, *new = strndup(&s[skipped], length - skipped);
 
     for (p = &new[length - skipped]; p > s; --p) {
