@@ -15,7 +15,7 @@
  * Copyright (C) Simon Gomizelj, 2014
  */
 
-/* #include "strbuf.h" */
+#include "argbuilder.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,16 +26,6 @@
 #define MONITOR_SOCK "/run/user/1000/monitor"
 #define _unlikely_(x) __builtin_expect(!!(x), 1)
 static inline void *zero(void *s, size_t n) { return memset(s, 0, n); }
-
-typedef struct buffer {
-    char *data;
-    size_t len;
-    size_t buflen;
-
-    size_t *idx;
-    size_t idx_len;
-    size_t idx_buflen;
-} buffer_t;
 
 static void hex_dump(const char *desc, const void *addr, size_t len)
 {
@@ -172,6 +162,19 @@ ssize_t buffer_printf(buffer_t *buf, const char *fmt, ...)
     return 0;
 }
 
+size_t buffer_build_argv(buffer_t *buf, char ***_argv)
+{
+    size_t idx, len = buf->idx_len + 1;
+    char **argv = malloc(sizeof(char *) * len);
+
+    for (idx = 0; idx < buf->idx_len; ++idx)
+        argv[idx] = &buf->data[buf->idx[idx]];
+
+    argv[idx] = NULL;
+    *_argv = argv;
+    return len;
+}
+
 int main(void)
 {
     buffer_t buf;
@@ -202,10 +205,14 @@ int main(void)
     hex_dump("buf.data", buf.data, buf.buflen);
     hex_dump("buf.idx", buf.idx, buf.idx_buflen * sizeof(size_t));
 
-    size_t idx;
-    for (idx = 0; idx < buf.idx_len; ++idx) {
-        printf("[%zd] = %s\n", idx, &buf.data[buf.idx[idx]]);
+    char **argv;
+    size_t idx, len;
+
+    len = buffer_build_argv(&buf, &argv);
+    for (idx = 0; idx < len; ++idx) {
+        printf("[%zd] = %s\n", idx, argv[idx]);
     }
+
 
     return 0;
 }
