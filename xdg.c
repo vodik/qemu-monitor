@@ -84,12 +84,10 @@ const char *get_user_cache_dir(void)
 
 const char *get_user_runtime_dir(void)
 {
-    if (!user_runtime_dir_cache) {
+    if (!user_runtime_dir_cache)
         user_runtime_dir_cache = get_xdg_dir("XDG_RUNTIME_DIR", NULL);
-        if (!user_runtime_dir_cache)
-            user_runtime_dir_cache = _printf("/run/user/%d", getuid());
-    }
-
+    if (!user_runtime_dir_cache || (user_runtime_dir_cache && !user_runtime_dir_cache[0]))
+        errx(1, "XDG_RUNTIME_DIR is not set");
     return user_runtime_dir_cache;
 }
 
