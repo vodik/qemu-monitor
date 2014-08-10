@@ -1,6 +1,8 @@
 #include "util.h"
 
+#include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 
 void hex_dump(const char *desc, const void *addr, size_t len)
 {
