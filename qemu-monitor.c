@@ -46,10 +46,10 @@ static void launch_qemu(void)
                 "-net", "nic,model=virtio",
                 "-rtc", "base=localtime",
                 "-monitor", NULL);
+
     args_printf(&buf, "unix:%s/%s,server,nowait", get_user_runtime_dir(), "qemu-sbc");
-
-
     args_build_argv(&buf, &argv);
+
     execvp(argv[0], argv);
     err(1, "failed to exec %s", argv[0]);
 }
