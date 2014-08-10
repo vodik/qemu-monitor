@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include "util.h"
 
 typedef struct buffer {
     char *data;
@@ -15,6 +16,6 @@ typedef struct buffer {
 int buffer_init(buffer_t *buf, size_t reserve);
 void buffer_clear(buffer_t *buf);
 int buffer_newarg(buffer_t *buf);
-ssize_t buffer_printf(buffer_t *buf, const char *fmt, ...);
+ssize_t buffer_printf(buffer_t *buf, const char *fmt, ...) _printf_(2,3);
 
 size_t buffer_build_argv(buffer_t *buf, char ***argv);

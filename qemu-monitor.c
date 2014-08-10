@@ -67,7 +67,7 @@ static void shutdown_qemu(void)
         struct sockaddr_un un;
     } sa;
 
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    _cleanup_close_ int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
         err(1, "failed to make socket");
 
@@ -78,7 +78,6 @@ static void shutdown_qemu(void)
         err(1, "failed to connect to monitor socket");
 
     dprintf(fd, "%s\n", SHUTDOWN_CMD);
-    close(fd);
 }
 
 int main(void)
