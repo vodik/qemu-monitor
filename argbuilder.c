@@ -134,8 +134,10 @@ ssize_t args_printf(args_t *buf, const char *fmt, ...)
     va_end(ap);
 
     if (_unlikely_(rc >= len)) {
-        if (_unlikely_(args_extendby(buf, rc + 1) < 0))
+        if (_unlikely_(args_extendby(buf, rc + 1) < 0)) {
+            va_end(ap);
             return -errno;
+        }
 
         p = &buf->data[buf->len];
 
