@@ -1,18 +1,18 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <signal.h>
 #include <err.h>
 #include <sys/signalfd.h>
 #include <sys/socket.h>
-#include <sys/un.h>
-#include <string.h>
+#include <linux/un.h>
 
 #include "argbuilder.h"
 
-#define MONITOR_SOCK "/run/user/1000/monitor"
+#define XDG_RUNTIME_DIR "/run/user/1000/"
 #define SHUTDOWN_CMD "system_powerdown"
 
 static void make_sigset(sigset_t *mask, ...)
@@ -44,7 +44,7 @@ static void launch_qemu(void)
                 "-net", "nic,model=virtio",
                 "-rtc", "base=localtime",
                 "-monitor", NULL);
-    args_printf(&buf, "unix:%s,server,nowait", MONITOR_SOCK);
+    args_printf(&buf, "unix:%s%s,server,nowait", XDG_RUNTIME_DIR, "qemu-sbc");
 
 
     args_build_argv(&buf, &argv);
@@ -64,7 +64,7 @@ static void shutdown_qemu(void)
         err(1, "failed to make socket");
 
     sa.un = (struct sockaddr_un){ .sun_family = AF_UNIX };
-    strcpy(sa.un.sun_path, MONITOR_SOCK);
+    snprintf(sa.un.sun_path, UNIX_PATH_MAX, "%s%s", XDG_RUNTIME_DIR, "qemu-sbc");
 
     if (connect(fd, &sa.sa, sizeof(sa)) < 0) {
         warn("failed to connect to monitor socket");
