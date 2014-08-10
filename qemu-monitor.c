@@ -2,9 +2,11 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <getopt.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <signal.h>
+#include <errno.h>
 #include <err.h>
 #include <sys/signalfd.h>
 #include <sys/socket.h>
@@ -74,13 +76,41 @@ static void shutdown_qemu(void)
     dprintf(fd, "%s\n", SHUTDOWN_CMD);
 }
 
-int main(void)
+static _noreturn_ void usage(FILE *out)
+{
+    fprintf(out, "usage: %s [options] <profile>\n", program_invocation_short_name);
+    fputs("Options:\n"
+        " -h, --help            display this help\n", out);
+
+    exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
+}
+
+int main(int argc, char *argv[])
 {
     sigset_t mask;
     make_sigset(&mask, SIGCHLD, SIGTERM, SIGINT, SIGQUIT, 0);
 
     if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
         err(1, "failed to set sigprocmask");
+
+    static const struct option opts[] = {
+        { "help",    no_argument,       0, 'h' },
+        { 0, 0, 0, 0 }
+    };
+
+    for (;;) {
+        int opt = getopt_long(argc, argv, "h", opts, NULL);
+        if (opt == -1)
+            break;
+
+        switch (opt) {
+        case 'h':
+            usage(stdout);
+            break;
+        default:
+            usage(stderr);
+        }
+    }
 
     pid_t pid = fork();
     if (pid < 0) {
