@@ -11,11 +11,11 @@ typedef struct buffer {
     size_t *idx;
     size_t idx_len;
     size_t idx_buflen;
-} buffer_t;
+} args_t;
 
-int buffer_init(buffer_t *buf, size_t reserve);
-void buffer_clear(buffer_t *buf);
-int buffer_newarg(buffer_t *buf);
-ssize_t buffer_printf(buffer_t *buf, const char *fmt, ...) _printf_(2,3);
+int args_init(args_t *buf, size_t reserve);
+void args_clear(args_t *buf);
+int args_newarg(args_t *buf);
+ssize_t args_printf(args_t *buf, const char *fmt, ...) _printf_(2,3);
 
-size_t buffer_build_argv(buffer_t *buf, char ***argv);
+size_t args_build_argv(args_t *buf, char ***argv);

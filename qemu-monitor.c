@@ -30,32 +30,32 @@ static void make_sigset(sigset_t *mask, ...)
 static void launch_qemu(void)
 {
     char **argv;
-    buffer_t buf;
-    buffer_init(&buf, 32);
+    args_t buf;
+    args_init(&buf, 32);
 
-    buffer_printf(&buf, "qemu-system-x86_64");
-    buffer_printf(&buf, "-enable-kvm");
-    buffer_printf(&buf, "-m");
-    buffer_printf(&buf, "2G");
-    buffer_printf(&buf, "-vga");
-    buffer_printf(&buf, "std");
-    buffer_printf(&buf, "-cpu");
-    buffer_printf(&buf, "host");
-    buffer_printf(&buf, "-smp");
-    buffer_printf(&buf, "4");
-    buffer_printf(&buf, "-nographic");
-    buffer_printf(&buf, "-drive");
-    buffer_printf(&buf, "file=/home/simon/.local/share/vm/sbc.raw,if=virtio,index=0,media=disk,cache=none");
-    buffer_printf(&buf, "-net");
-    buffer_printf(&buf, "tap,ifname=tap0,script=no,downscript=no");
-    buffer_printf(&buf, "-net");
-    buffer_printf(&buf, "nic,model=virtio");
-    buffer_printf(&buf, "-rtc");
-    buffer_printf(&buf, "base=localtime");
-    buffer_printf(&buf, "-monitor");
-    buffer_printf(&buf, "unix:" MONITOR_SOCK ",server,nowait");
+    args_printf(&buf, "qemu-system-x86_64");
+    args_printf(&buf, "-enable-kvm");
+    args_printf(&buf, "-m");
+    args_printf(&buf, "2G");
+    args_printf(&buf, "-vga");
+    args_printf(&buf, "std");
+    args_printf(&buf, "-cpu");
+    args_printf(&buf, "host");
+    args_printf(&buf, "-smp");
+    args_printf(&buf, "4");
+    args_printf(&buf, "-nographic");
+    args_printf(&buf, "-drive");
+    args_printf(&buf, "file=/home/simon/.local/share/vm/sbc.raw,if=virtio,index=0,media=disk,cache=none");
+    args_printf(&buf, "-net");
+    args_printf(&buf, "tap,ifname=tap0,script=no,downscript=no");
+    args_printf(&buf, "-net");
+    args_printf(&buf, "nic,model=virtio");
+    args_printf(&buf, "-rtc");
+    args_printf(&buf, "base=localtime");
+    args_printf(&buf, "-monitor");
+    args_printf(&buf, "unix:" MONITOR_SOCK ",server,nowait");
 
-    buffer_build_argv(&buf, &argv);
+    args_build_argv(&buf, &argv);
     execvp(argv[0], argv);
     err(1, "failed to exec %s", argv[0]);
 }

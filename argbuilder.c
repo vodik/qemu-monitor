@@ -31,7 +31,7 @@ static inline size_t next_power(size_t x)
     return 1UL << (64 - __builtin_clzl(x - 1));
 }
 
-static int buffer_extendby(buffer_t *buf, size_t extby)
+static int args_extendby(args_t *buf, size_t extby)
 {
     char *data;
     size_t newlen = _unlikely_(!buf->buflen && extby < 64)
@@ -50,7 +50,7 @@ static int buffer_extendby(buffer_t *buf, size_t extby)
     return 0;
 }
 
-static int buffer_store_idx(buffer_t *buf)
+static int args_store_idx(args_t *buf)
 {
     size_t newlen = _unlikely_(!buf->idx_buflen) ? 4 : buf->idx_len + 1;
     size_t *idx;
@@ -70,39 +70,39 @@ static int buffer_store_idx(buffer_t *buf)
     return 0;
 }
 
-int buffer_init(buffer_t *buf, size_t reserve)
+int args_init(args_t *buf, size_t reserve)
 {
-    zero(buf, sizeof(buffer_t));
+    zero(buf, sizeof(args_t));
 
-    if (_unlikely_(reserve && buffer_extendby(buf, reserve) < 0))
+    if (_unlikely_(reserve && args_extendby(buf, reserve) < 0))
         return -errno;
 
     buf->data[buf->len] = '\0';
     return 0;
 }
 
-void buffer_clear(buffer_t *buf)
+void args_clear(args_t *buf)
 {
     buf->len = 0;
     if (buf->data)
         buf->data[buf->len] = '\0';
 }
 
-int buffer_newarg(buffer_t *buf)
+int args_newarg(args_t *buf)
 {
-    if (_unlikely_(buffer_extendby(buf, 2) < 0))
+    if (_unlikely_(args_extendby(buf, 2) < 0))
         return -errno;
 
     buf->data[buf->len++] = '\0';
     buf->data[buf->len] = '\0';
 
-    buffer_store_idx(buf);
+    args_store_idx(buf);
     return 0;
 }
 
-ssize_t buffer_printf(buffer_t *buf, const char *fmt, ...)
+ssize_t args_printf(args_t *buf, const char *fmt, ...)
 {
-    if (buffer_newarg(buf) < 0)
+    if (args_newarg(buf) < 0)
         return -errno;
 
     size_t len = buf->buflen - buf->len;
@@ -114,7 +114,7 @@ ssize_t buffer_printf(buffer_t *buf, const char *fmt, ...)
     va_end(ap);
 
     if (_unlikely_(rc >= len)) {
-        if (_unlikely_(buffer_extendby(buf, rc + 1) < 0))
+        if (_unlikely_(args_extendby(buf, rc + 1) < 0))
             return -errno;
 
         p = &buf->data[buf->len];
@@ -129,7 +129,7 @@ ssize_t buffer_printf(buffer_t *buf, const char *fmt, ...)
     return 0;
 }
 
-size_t buffer_build_argv(buffer_t *buf, char ***_argv)
+size_t args_build_argv(args_t *buf, char ***_argv)
 {
     size_t idx, len = buf->idx_len + 1;
     char **argv = malloc(sizeof(char *) * len);
