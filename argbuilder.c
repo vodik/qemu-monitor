@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <errno.h>
 
@@ -98,6 +99,25 @@ int args_newarg(args_t *buf)
 
     args_store_idx(buf);
     return 0;
+}
+
+ssize_t args_append(args_t *buf, char *arg, ...)
+{
+    va_list ap;
+    ssize_t len = 0;
+
+    args_printf(buf, "%s", arg);
+
+    va_start(ap, arg);
+    while ((arg = va_arg(ap, char *))) {
+        ssize_t ret = args_printf(buf, "%s", arg);
+        if (ret < 0)
+            return ret;
+        len += ret;
+    }
+    va_end(ap);
+
+    return len;
 }
 
 ssize_t args_printf(args_t *buf, const char *fmt, ...)

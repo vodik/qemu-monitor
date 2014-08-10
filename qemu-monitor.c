@@ -33,27 +33,17 @@ static void launch_qemu(void)
     args_t buf;
     args_init(&buf, 32);
 
-    args_printf(&buf, "qemu-system-x86_64");
-    args_printf(&buf, "-enable-kvm");
-    args_printf(&buf, "-m");
-    args_printf(&buf, "2G");
-    args_printf(&buf, "-vga");
-    args_printf(&buf, "std");
-    args_printf(&buf, "-cpu");
-    args_printf(&buf, "host");
-    args_printf(&buf, "-smp");
-    args_printf(&buf, "4");
-    args_printf(&buf, "-nographic");
-    args_printf(&buf, "-drive");
-    args_printf(&buf, "file=/home/simon/.local/share/vm/sbc.raw,if=virtio,index=0,media=disk,cache=none");
-    args_printf(&buf, "-net");
-    args_printf(&buf, "tap,ifname=tap0,script=no,downscript=no");
-    args_printf(&buf, "-net");
-    args_printf(&buf, "nic,model=virtio");
-    args_printf(&buf, "-rtc");
-    args_printf(&buf, "base=localtime");
-    args_printf(&buf, "-monitor");
-    args_printf(&buf, "unix:" MONITOR_SOCK ",server,nowait");
+    args_append(&buf, "qemu-system-x86_64", "-enable-kvm",
+                "-m", "2G",
+                "-vga", "std",
+                "-cpu", "host",
+                "-smp", "4",
+                "-nographic",
+                "-drive", "file=/home/simon/.local/share/vm/sbc.raw,if=virtio,index=0,media=disk,cache=none",
+                "-net", "tap,ifname=tap0,script=no,downscript=no",
+                "-net", "nic,model=virtio",
+                "-rtc", "base=localtime",
+                "-monitor", "unix:" MONITOR_SOCK ",server,nowait", NULL);
 
     args_build_argv(&buf, &argv);
     execvp(argv[0], argv);

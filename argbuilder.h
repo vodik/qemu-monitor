@@ -16,6 +16,8 @@ typedef struct buffer {
 int args_init(args_t *buf, size_t reserve);
 void args_clear(args_t *buf);
 int args_newarg(args_t *buf);
+
+ssize_t args_append(args_t *buf, char *arg, ...);
 ssize_t args_printf(args_t *buf, const char *fmt, ...) _printf_(2,3);
 
 size_t args_build_argv(args_t *buf, char ***argv);
