@@ -4,7 +4,7 @@ CFLAGS := -std=c11 \
 	-D_GNU_SOURCE \
 	${CFLAGS}
 
-qemu-monitor: qemu-monitor.o argbuilder.o
+qemu-monitor: qemu-monitor.o argbuilder.o util.o
 
 clean:
 	${RM} qemu-monitor *.o
