@@ -66,8 +66,10 @@ static void shutdown_qemu(void)
     sa.un = (struct sockaddr_un){ .sun_family = AF_UNIX };
     strcpy(sa.un.sun_path, MONITOR_SOCK);
 
-    if (connect(fd, &sa.sa, sizeof(sa)) < 0)
-        err(1, "failed to connect to monitor socket");
+    if (connect(fd, &sa.sa, sizeof(sa)) < 0) {
+        warn("failed to connect to monitor socket");
+        return;
+    }
 
     dprintf(fd, "%s\n", SHUTDOWN_CMD);
 }
