@@ -98,5 +98,6 @@ _destructor_ static void free_dirs(void)
     free(user_config_dir_cache);
     free(user_data_dir_cache);
     free(user_cache_dir_cache);
+    free(user_runtime_dir_cache);
 }
 #endif
