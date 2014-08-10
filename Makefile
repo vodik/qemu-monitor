@@ -1,4 +1,4 @@
-qemu-monitor: qemu-monitor.o
+qemu-monitor: qemu-monitor.o argbuilder.o
 
 clean:
 	${RM} qemu-monitor *.o

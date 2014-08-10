@@ -9,6 +9,8 @@
 #include <sys/un.h>
 #include <string.h>
 
+#include "argbuilder.h"
+
 #define MONITOR_SOCK "/run/user/1000/monitor"
 #define SHUTDOWN_CMD "system_powerdown"
 
@@ -27,23 +29,35 @@ static void make_sigset(sigset_t *mask, ...)
 
 static void launch_qemu(void)
 {
-    const char *args[] = {
-        "qemu-system-x86_64",
-        "-enable-kvm",
-        "-m", "2G",
-        "-vga", "std",
-        "-cpu", "host",
-        "-smp", "4", "-nographic",
-        "-drive", "file=/home/simon/.local/share/vm/sbc.raw,if=virtio,index=0,media=disk,cache=none",
-        "-net", "tap,ifname=tap0,script=no,downscript=no",
-        "-net", "nic,model=virtio",
-        "-rtc", "base=localtime",
-        "-monitor", "unix:" MONITOR_SOCK ",server,nowait",
-        NULL
-    };
+    char **argv;
+    buffer_t buf;
+    buffer_init(&buf, 32);
 
-    execvp(args[0], (char *const *)args);
-    err(1, "failed to exec %s", args[0]);
+    buffer_printf(&buf, "qemu-system-x86_64");
+    buffer_printf(&buf, "-enable-kvm");
+    buffer_printf(&buf, "-m");
+    buffer_printf(&buf, "2G");
+    buffer_printf(&buf, "-vga");
+    buffer_printf(&buf, "std");
+    buffer_printf(&buf, "-cpu");
+    buffer_printf(&buf, "host");
+    buffer_printf(&buf, "-smp");
+    buffer_printf(&buf, "4");
+    buffer_printf(&buf, "-nographic");
+    buffer_printf(&buf, "-drive");
+    buffer_printf(&buf, "file=/home/simon/.local/share/vm/sbc.raw,if=virtio,index=0,media=disk,cache=none");
+    buffer_printf(&buf, "-net");
+    buffer_printf(&buf, "tap,ifname=tap0,script=no,downscript=no");
+    buffer_printf(&buf, "-net");
+    buffer_printf(&buf, "nic,model=virtio");
+    buffer_printf(&buf, "-rtc");
+    buffer_printf(&buf, "base=localtime");
+    buffer_printf(&buf, "-monitor");
+    buffer_printf(&buf, "unix:" MONITOR_SOCK ",server,nowait");
+
+    buffer_build_argv(&buf, &argv);
+    execvp(argv[0], (char *const *)argv);
+    err(1, "failed to exec %s", argv[0]);
 }
 
 static void shutdown_qemu(void)
