@@ -35,7 +35,6 @@ static void launch_qemu(void)
 
     args_append(&buf, "qemu-system-x86_64", "-enable-kvm",
                 "-m", "2G",
-                "-vga", "std",
                 "-cpu", "host",
                 "-smp", "4",
                 "-nographic",
