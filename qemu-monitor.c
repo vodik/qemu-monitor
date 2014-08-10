@@ -56,7 +56,7 @@ static void launch_qemu(void)
     buffer_printf(&buf, "unix:" MONITOR_SOCK ",server,nowait");
 
     buffer_build_argv(&buf, &argv);
-    execvp(argv[0], (char *const *)argv);
+    execvp(argv[0], argv);
     err(1, "failed to exec %s", argv[0]);
 }
 
