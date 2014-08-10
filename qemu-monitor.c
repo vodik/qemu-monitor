@@ -43,7 +43,9 @@ static void launch_qemu(void)
                 "-net", "tap,ifname=tap0,script=no,downscript=no",
                 "-net", "nic,model=virtio",
                 "-rtc", "base=localtime",
-                "-monitor", "unix:" MONITOR_SOCK ",server,nowait", NULL);
+                "-monitor", NULL);
+    args_printf(&buf, "unix:%s,server,nowait", MONITOR_SOCK);
+
 
     args_build_argv(&buf, &argv);
     execvp(argv[0], argv);
