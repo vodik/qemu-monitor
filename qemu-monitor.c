@@ -83,10 +83,6 @@ int main(void)
         if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0)
             err(1, "failed to set sigprocmask");
 
-        close(0);
-        close(1);
-        close(2);
-
         launch_qemu();
     }
 
