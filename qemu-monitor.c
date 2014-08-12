@@ -75,7 +75,6 @@ static void launch_qemu(const char *config)
 
     if (line)
         free(line);
-    exit(EXIT_SUCCESS);
 
     args_printf(&buf, "-monitor");
     args_printf(&buf, "unix:%s/%s,server,nowait", get_user_runtime_dir(), "qemu-sbc");
