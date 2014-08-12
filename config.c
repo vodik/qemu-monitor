@@ -9,15 +9,21 @@
 
 static char *strstripped(const char *s, size_t length)
 {
-    size_t skipped = strspn(s, WHITESPACE);
-    char *p, *new = strndup(&s[skipped], length - skipped);
+    char *new = NULL;
+    size_t idx, skipped = strspn(s, WHITESPACE);
+    length -= skipped;
 
-    for (p = &new[length - skipped]; p > s; --p) {
-        if (!strchr(WHITESPACE, p[-1]))
-            break;
+    if (length > 0) {
+        new = strndup(&s[skipped], length);
+
+        for (idx = length; idx != 0; --idx) {
+            if (!strchr(WHITESPACE, new[idx]))
+                break;
+        }
+
+        new[idx + 1] = 0;
     }
 
-    *p = 0;
     return new;
 }
 
