@@ -182,6 +182,20 @@ int main(int argc, char *argv[])
             shutdown_qemu();
             break;
         case SIGCHLD:
+            switch (si.ssi_code) {
+            case CLD_EXITED:
+                if (si.ssi_status)
+                    warnx("application terminated with error code %d", si.ssi_status);
+                return si.ssi_status;
+            case CLD_KILLED:
+            case CLD_DUMPED:
+                errx(1, "application terminated abnormally with signal %d (%s)",
+                     si.ssi_status, strsignal(si.ssi_status));
+            case CLD_TRAPPED:
+            case CLD_STOPPED:
+            default:
+                break;
+            }
             return 0;
         }
     }
