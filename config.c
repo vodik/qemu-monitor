@@ -1,8 +1,10 @@
+#include "config.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-#define WHITESPACE " \t"
+#define WHITESPACE " \t\r\n"
 
 static char *strstripped(const char *s, size_t length)
 {
@@ -18,7 +20,7 @@ static char *strstripped(const char *s, size_t length)
     return new;
 }
 
-static void split_key_value(const char *line, char **key, char **value)
+void split_key_value(const char *line, char **key, char **value)
 {
     size_t length = strcspn(line, "#");
     if (length == 0) {

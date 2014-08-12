@@ -13,6 +13,7 @@
 #include <linux/un.h>
 
 #include "argbuilder.h"
+#include "config.h"
 #include "xdg.h"
 
 #define SHUTDOWN_CMD "system_powerdown"
@@ -30,24 +31,54 @@ static void make_sigset(sigset_t *mask, ...)
     va_end(ap);
 }
 
-static void launch_qemu(void)
+static void launch_qemu(const char *config)
 {
     char **argv;
     args_t buf;
+    FILE *fp = fopen(config, "r");
+    if (fp == NULL)
+        exit(EXIT_FAILURE);
+
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+
     args_init(&buf, 32);
+    args_append(&buf, "qemu-system-x86_64", "-enable-kvm", NULL);
 
-    args_append(&buf, "qemu-system-x86_64", "-enable-kvm",
-                "-m", "2G",
-                "-cpu", "host",
-                "-smp", "4",
-                "-nographic",
-                "-drive", "file=/home/simon/.local/share/vm/sbc.raw,if=virtio,index=0,media=disk,cache=none",
-                "-net", "tap,ifname=tap0,script=no,downscript=no",
-                "-net", "nic,model=virtio",
-                "-rtc", "base=localtime",
-                "-monitor", NULL);
+    while ((read = getline(&line, &len, fp)) != -1) {
+        _cleanup_free_ char *key, *value;
+        split_key_value(line, &key, &value);
+
+        if (streq(key, "CPU")) {
+            args_append(&buf, "-cpu", value, NULL);
+        } else if (streq(key, "SMP")) {
+            args_append(&buf, "-smp", value, NULL);
+        } else if (streq(key, "Memory")) {
+            args_append(&buf, "-memory", value, NULL);
+        } else if (streq(key, "Disk")) {
+            args_printf(&buf, "-drive");
+            args_printf(&buf, "file=%s,if=virtio,index=0,media=disk,cache=none", value);
+        } else if (streq(key, "NetInterface")) {
+            args_printf(&buf, "-net");
+            args_printf(&buf, "tap,ifname=%s,script=no,downscript=no", value);
+        } else if (streq(key, "NetModel")) {
+            args_printf(&buf, "-net");
+            args_printf(&buf, "nic,model=%s", value);
+        } else if (streq(key, "RealTimeClock")) {
+            args_printf(&buf, "-rtc");
+            args_printf(&buf, "base=%s", value);
+        } else if (streq(key, "Graphics")) {
+            args_printf(&buf, "-nographic");
+        }
+    }
+
+    if (line)
+        free(line);
+    exit(EXIT_SUCCESS);
+
+    args_printf(&buf, "-monitor");
     args_printf(&buf, "unix:%s/%s,server,nowait", get_user_runtime_dir(), "qemu-sbc");
-
 
     args_build_argv(&buf, &argv);
     execvp(argv[0], argv);
@@ -112,6 +143,10 @@ int main(int argc, char *argv[])
         }
     }
 
+    const char *config = argv[optind];
+    if (!config)
+        errx(1, "config not set");
+
     pid_t pid = fork();
     if (pid < 0) {
         err(1, "failed to fork");
@@ -120,7 +155,7 @@ int main(int argc, char *argv[])
         if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0)
             err(1, "failed to set sigprocmask");
 
-        launch_qemu();
+        launch_qemu(config);
     }
 
     /* Needed twice to guarantee the child gets its own process group.
