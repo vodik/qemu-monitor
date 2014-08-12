@@ -55,7 +55,7 @@ static void launch_qemu(const char *config)
         } else if (streq(key, "SMP")) {
             args_append(&buf, "-smp", value, NULL);
         } else if (streq(key, "Memory")) {
-            args_append(&buf, "-memory", value, NULL);
+            args_append(&buf, "-m", value, NULL);
         } else if (streq(key, "Disk")) {
             args_printf(&buf, "-drive");
             args_printf(&buf, "file=%s,if=virtio,index=0,media=disk,cache=none", value);
