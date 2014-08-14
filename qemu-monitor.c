@@ -47,9 +47,11 @@ static void read_config(const char *config, args_t *buf)
     while ((read = getline(&line, &len, fp)) != -1) {
         hex_dump("raw line", line, read);
 
-        _cleanup_free_ char *key, *value;
+        _cleanup_free_ char *key = NULL, *value = NULL;
         split_key_value(line, &key, &value);
 
+        if (!key || !value)
+            continue;
         hex_dump(key, value, strlen(value));
 
         if (streq(key, "CPU")) {
