@@ -35,8 +35,14 @@ static void make_sigset(sigset_t *mask, ...)
 static void read_config(const char *config, args_t *buf, bool fullscreen, bool snapshot)
 {
     FILE *fp = fopen(config, "r");
-    if (fp == NULL)
-        err(1, "couldn't open config %s", config);
+    if (fp == NULL) {
+        _cleanup_free_ char *profile = NULL;
+
+        asprintf(&profile, "%s/vm/%s.conf", get_user_config_dir(), config);
+        fp = fopen(profile, "r");
+        if (fp == NULL)
+            err(1, "couldn't open %s or %s", config, profile);
+    }
 
     char *line = NULL;
     size_t len = 0;
