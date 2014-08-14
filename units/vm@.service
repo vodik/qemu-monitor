@@ -1,0 +1,9 @@
+[Unit]
+Description=Monitor for %I machine
+
+[Service]
+ExecStart=/usr/bin/qemu-monitor %I
+StandardOutput=syslog
+StandardError=syslog
+KillMode=mixed
+TimeoutStopSec=3min
