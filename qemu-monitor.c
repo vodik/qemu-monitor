@@ -135,7 +135,9 @@ static _noreturn_ void usage(FILE *out)
 {
     fprintf(out, "usage: %s [options] <profile>\n", program_invocation_short_name);
     fputs("Options:\n"
-        " -h, --help            display this help\n", out);
+        " -h, --help            display this help\n"
+        " -f, --fullscreen      start the vm in fullscreen mode (if graphical)\n"
+        " -s, --snapshot        write to temporary files instead of the disk image file\n", out);
 
     exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
