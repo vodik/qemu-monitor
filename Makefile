@@ -4,6 +4,8 @@ CFLAGS := -std=c11 \
 	-D_GNU_SOURCE \
 	${CFLAGS}
 
+LDLIBS = -ljansson
+
 qemu-monitor: qemu-monitor.o argbuilder.o config.o xdg.o util.o
 
 clean:

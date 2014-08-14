@@ -11,6 +11,7 @@
 #include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <linux/un.h>
+#include <jansson.h>
 
 #include "argbuilder.h"
 #include "config.h"
@@ -110,6 +111,19 @@ static void launch_qemu(args_t *buf)
     err(1, "failed to exec %s", argv[0]);
 }
 
+static int json_callback(const char *buffer, size_t size, void *data)
+{
+    int *fd = data;
+    return write(*fd, buffer, size) < 0 ? -1 : 0;
+}
+
+static int json_send(int fd, const char *command)
+{
+    _cleanup_json_ json_t *root = json_object();
+    json_object_set_new(root, "execute", json_string(command));
+    return json_dump_callback(root, json_callback, &fd, 0);
+}
+
 static void shutdown_qemu(pid_t pid)
 {
     union {
@@ -131,9 +145,9 @@ static void shutdown_qemu(pid_t pid)
 
     char buf[BUFSIZ];
     read(fd, buf, sizeof(buf));
-    write(fd, NEGOTIATE_CMD, strlen(NEGOTIATE_CMD));
+    json_send(fd, "qmp_capabilities");
     read(fd, buf, sizeof(buf));
-    write(fd, SHUTDOWN_CMD, strlen(SHUTDOWN_CMD));
+    json_send(fd, "system_powerdown");
     read(fd, buf, sizeof(buf));
 }
 

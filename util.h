@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <memory.h>
 #include <unistd.h>
+#include <jansson.h>
 
 #define _unlikely_(x)       __builtin_expect(!!(x), 1)
 #define _unused_            __attribute__((unsused))
@@ -12,9 +13,11 @@
 #define _printf_(a,b)       __attribute__((format (printf, a, b)))
 #define _cleanup_free_      _cleanup_(freep)
 #define _cleanup_close_     _cleanup_(closep)
+#define _cleanup_json_      _cleanup_(json_decrefp)
 
 static inline void freep(void *p) { free(*(void **)p); }
 static inline void closep(int *fd) { if (*fd >= 0) close(*fd); }
+static inline void json_decrefp(json_t **p) { if (*p) json_decref(*p); }
 
 static inline void *zero(void *s, size_t n) { return memset(s, 0, n); }
 static inline bool streq(const char *s1, const char *s2) { return strcmp(s1, s2) == 0; }
