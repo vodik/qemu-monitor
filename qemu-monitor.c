@@ -59,7 +59,7 @@ static void read_config(const char *config, args_t *buf, bool fullscreen, bool s
         } else if (streq(key, "Memory")) {
             args_append(buf, "-m", value, NULL);
         } else if (streq(key, "MemoryFile")) {
-            args_append(buf, "-mem-file", value, NULL);
+            args_append(buf, "-mem-path", value, NULL);
         } else if (streq(key, "Disk")) {
             args_printf(buf, "-drive");
             args_printf(buf, "file=%s,if=virtio,index=0,media=disk,cache=none", value);
