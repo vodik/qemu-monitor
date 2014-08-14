@@ -75,7 +75,13 @@ static void read_config(const char *config, args_t *buf)
             args_printf(buf, "-rtc");
             args_printf(buf, "base=%s", value);
         } else if (streq(key, "Graphics")) {
-            args_printf(buf, "-nographic");
+            if (streq(key, "none")) {
+                args_append(buf, "-nographic", NULL);
+            } else {
+                args_append(buf, "-vga", value, NULL);
+            }
+        } else if (streq(key, "SoundHardware")) {
+            args_append(buf, "-soundhw", value, NULL);
         }
     }
 
