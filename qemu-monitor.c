@@ -79,7 +79,7 @@ static void read_config(const char *config, args_t *buf, bool fullscreen, bool s
             args_printf(buf, "-rtc");
             args_printf(buf, "base=%s", value);
         } else if (streq(key, "Graphics")) {
-            if (streq(key, "none")) {
+            if (streq(value, "none")) {
                 args_append(buf, "-nographic", NULL);
             } else {
                 args_append(buf, "-vga", value, NULL);
