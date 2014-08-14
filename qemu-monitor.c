@@ -16,7 +16,8 @@
 #include "config.h"
 #include "xdg.h"
 
-#define SHUTDOWN_CMD "system_powerdown"
+#define NEGOTIATE_CMD "{ \"execute\": \"qmp_capabilities\" }\n"
+#define SHUTDOWN_CMD "{ \"execute\": \"system_powerdown\" }\n"
 
 static void make_sigset(sigset_t *mask, ...)
 {
@@ -88,7 +89,7 @@ static void read_config(const char *config, args_t *buf)
     if (line)
         free(line);
 
-    args_printf(buf, "-monitor");
+    args_append(buf, "-monitor", "none", "-qmp", NULL);
     args_printf(buf, "unix:%s/monitor-%d,server,nowait", get_user_runtime_dir(), getpid());
 }
 
@@ -120,7 +121,12 @@ static void shutdown_qemu(pid_t pid)
         return;
     }
 
-    dprintf(fd, "%s\n", SHUTDOWN_CMD);
+    char buf[BUFSIZ];
+    read(fd, buf, sizeof(buf));
+    write(fd, NEGOTIATE_CMD, strlen(NEGOTIATE_CMD));
+    read(fd, buf, sizeof(buf));
+    write(fd, SHUTDOWN_CMD, strlen(SHUTDOWN_CMD));
+    read(fd, buf, sizeof(buf));
 }
 
 static _noreturn_ void usage(FILE *out)
