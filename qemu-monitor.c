@@ -32,7 +32,7 @@ static void make_sigset(sigset_t *mask, ...)
     va_end(ap);
 }
 
-static void read_config(const char *config, args_t *buf)
+static void read_config(const char *config, args_t *buf, bool fullscreen, bool snapshot)
 {
     FILE *fp = fopen(config, "r");
     if (fp == NULL)
@@ -82,6 +82,11 @@ static void read_config(const char *config, args_t *buf)
             args_append(buf, "-soundhw", value, NULL);
         }
     }
+
+    if (fullscreen)
+        args_append(buf, "-full-screen", NULL);
+    if (snapshot)
+        args_append(buf, "-snapshot", NULL);
 
     if (line)
         free(line);
@@ -137,21 +142,30 @@ static _noreturn_ void usage(FILE *out)
 
 int main(int argc, char *argv[])
 {
+    bool fullscreen = false, snapshot = false;
     args_t buf;
 
     static const struct option opts[] = {
-        { "help",    no_argument,       0, 'h' },
+        { "help",       no_argument, 0, 'h' },
+        { "fullscreen", no_argument, 0, 'f' },
+        { "snapshot",   no_argument, 0, 's' },
         { 0, 0, 0, 0 }
     };
 
     for (;;) {
-        int opt = getopt_long(argc, argv, "h", opts, NULL);
+        int opt = getopt_long(argc, argv, "hfs", opts, NULL);
         if (opt == -1)
             break;
 
         switch (opt) {
         case 'h':
             usage(stdout);
+            break;
+        case 'f':
+            fullscreen = true;
+            break;
+        case 's':
+            snapshot = true;
             break;
         default:
             usage(stderr);
@@ -176,7 +190,7 @@ int main(int argc, char *argv[])
         if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0)
             err(1, "failed to set sigprocmask");
 
-        read_config(config, &buf);
+        read_config(config, &buf, fullscreen, snapshot);
         launch_qemu(&buf);
     }
 
