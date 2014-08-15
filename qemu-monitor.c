@@ -191,7 +191,7 @@ static int qmp_accept(int fd)
     read(cfd, buf, sizeof(buf));
     qmp_command(cfd, "qmp_capabilities");
 
-    return 0;
+    return cfd;
 }
 
 static _noreturn_ void usage(FILE *out)
