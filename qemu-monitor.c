@@ -33,7 +33,7 @@ static void make_sigset(sigset_t *mask, ...)
     va_end(ap);
 }
 
-static void read_config(const char *config, args_t *buf, pid_t ppid, bool fullscreen, bool snapshot)
+static void read_config(const char *config, args_t *buf, const char *sockpath, bool fullscreen, bool snapshot)
 {
     FILE *fp = fopen(config, "r");
     if (fp == NULL) {
@@ -99,7 +99,7 @@ static void read_config(const char *config, args_t *buf, pid_t ppid, bool fullsc
         free(line);
 
     args_append(buf, "-monitor", "none", "-qmp", NULL);
-    args_printf(buf, "unix:%s/monitor-%d", get_user_runtime_dir(), ppid);
+    args_printf(buf, "unix:%s", sockpath);
 }
 
 static void launch_qemu(args_t *buf)
@@ -109,6 +109,13 @@ static void launch_qemu(args_t *buf)
     args_build_argv(buf, &argv);
     execvp(argv[0], argv);
     err(1, "failed to exec %s", argv[0]);
+}
+
+static char *qmp_sockpath(void)
+{
+    char *socket = NULL;
+    asprintf(&socket, "%s/monitor-%d", get_user_runtime_dir(), getpid());
+    return socket;
 }
 
 static int qmp_send(int fd, const char *command)
@@ -151,7 +158,7 @@ static int qmp_command(int fd, const char *command)
     return 0;
 }
 
-static int qmp_socket(pid_t pid)
+static int qmp_listen(const char *sockpath)
 {
     union {
         struct sockaddr sa;
@@ -163,7 +170,7 @@ static int qmp_socket(pid_t pid)
         err(1, "failed to make socket");
 
     sa.un = (struct sockaddr_un){ .sun_family = AF_UNIX };
-    snprintf(sa.un.sun_path, UNIX_PATH_MAX, "%s/monitor-%d", get_user_runtime_dir(), pid);
+    strncpy(sa.un.sun_path, sockpath, UNIX_PATH_MAX);
 
     if (bind(fd, &sa.sa, sizeof(sa)) < 0)
         err(1, "failed to bind monitor socket");
@@ -217,6 +224,8 @@ int main(int argc, char *argv[])
         }
     }
 
+    char *sockpath = qmp_sockpath();
+
     const char *config = argv[optind];
     if (!config)
         errx(1, "config not set");
@@ -227,8 +236,7 @@ int main(int argc, char *argv[])
     if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
         err(1, "failed to set sigprocmask");
 
-    pid_t ppid = getpid();
-    _cleanup_close_ int qmp_fd = qmp_socket(ppid);
+    _cleanup_close_ int qmp_fd = qmp_listen(sockpath);
 
     pid_t pid = fork();
     if (pid < 0) {
@@ -238,7 +246,7 @@ int main(int argc, char *argv[])
         if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0)
             err(1, "failed to set sigprocmask");
 
-        read_config(config, &buf, ppid, fullscreen, snapshot);
+        read_config(config, &buf, sockpath, fullscreen, snapshot);
         launch_qemu(&buf);
     }
 
