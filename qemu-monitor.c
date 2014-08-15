@@ -111,17 +111,51 @@ static void launch_qemu(args_t *buf)
     err(1, "failed to exec %s", argv[0]);
 }
 
-static int json_callback(const char *buffer, size_t size, void *data)
+static int json_write(const char *buffer, size_t size, void *data)
 {
     int *fd = data;
     return write(*fd, buffer, size) < 0 ? -1 : 0;
 }
 
-static int json_send(int fd, const char *command)
+static size_t json_read(void *buffer, size_t buflen, void *data)
+{
+    int *fd = data;
+    ssize_t nbytes_r = read(*fd, buffer, buflen);
+    if (nbytes_r < 0)
+        return (size_t)-1;
+    return (size_t)nbytes_r;
+}
+
+static int qmp_send(int fd, const char *command)
 {
     _cleanup_json_ json_t *root = json_object();
     json_object_set_new(root, "execute", json_string(command));
-    return json_dump_callback(root, json_callback, &fd, 0);
+    if (json_dump_callback(root, json_write, &fd, 0) < 0)
+        return -1;
+    return 0;
+}
+
+static int qmp_recv(int fd)
+{
+    json_error_t error;
+    _cleanup_json_ json_t *root = json_load_callback(json_read, &fd, 0, &error);
+
+    if (!root)
+        errx(1, "error on line %d: %s\n", error.line, error.text);
+
+    json_t *name = json_object_get(root, "return");
+    if (!json_is_array(name))
+        return -1;
+    return 0;
+}
+
+static int qmp_command(int fd, const char *command)
+{
+    if (qmp_send(fd, command) < 0)
+        return -1;
+    if (qmp_recv(fd) < 0)
+        return -1;
+    return 0;
 }
 
 static void shutdown_qemu(pid_t pid)
@@ -145,10 +179,8 @@ static void shutdown_qemu(pid_t pid)
 
     char buf[BUFSIZ];
     read(fd, buf, sizeof(buf));
-    json_send(fd, "qmp_capabilities");
-    read(fd, buf, sizeof(buf));
-    json_send(fd, "system_powerdown");
-    read(fd, buf, sizeof(buf));
+    qmp_command(fd, "qmp_capabilities");
+    qmp_command(fd, "system_powerdown");
 }
 
 static _noreturn_ void usage(FILE *out)
