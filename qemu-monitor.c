@@ -181,6 +181,25 @@ static int qmp_listen(const char *sockpath)
     return fd;
 }
 
+static int qmp_accept(int fd)
+{
+    union {
+        struct sockaddr sa;
+        struct sockaddr_un un;
+    } sa;
+    static socklen_t sa_len = sizeof(struct sockaddr_un);
+
+    int cfd = accept4(fd, &sa.sa, &sa_len, SOCK_CLOEXEC);
+    if (cfd < 0)
+        err(EXIT_FAILURE, "failed to accept connection");
+
+    char buf[BUFSIZ];
+    read(cfd, buf, sizeof(buf));
+    qmp_command(cfd, "qmp_capabilities");
+
+    return 0;
+}
+
 static _noreturn_ void usage(FILE *out)
 {
     fprintf(out, "usage: %s [options] <profile>\n", program_invocation_short_name);
@@ -224,7 +243,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    char *sockpath = qmp_sockpath();
+    _cleanup_free_ char *sockpath = qmp_sockpath();
+    _cleanup_close_ int qmp_fd = qmp_listen(sockpath);
 
     const char *config = argv[optind];
     if (!config)
@@ -235,8 +255,6 @@ int main(int argc, char *argv[])
 
     if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
         err(1, "failed to set sigprocmask");
-
-    _cleanup_close_ int qmp_fd = qmp_listen(sockpath);
 
     pid_t pid = fork();
     if (pid < 0) {
@@ -250,20 +268,7 @@ int main(int argc, char *argv[])
         launch_qemu(&buf);
     }
 
-    union {
-        struct sockaddr sa;
-        struct sockaddr_un un;
-    } sa;
-    static socklen_t sa_len = sizeof(struct sockaddr_un);
-
-    int cfd = accept4(qmp_fd, &sa.sa, &sa_len, SOCK_CLOEXEC);
-    if (cfd < 0)
-        err(EXIT_FAILURE, "failed to accept connection");
-
-    char buf_[BUFSIZ];
-    read(cfd, buf_, sizeof(buf_));
-    qmp_command(cfd, "qmp_capabilities");
-
+    _cleanup_close_ int cfd = qmp_accept(qmp_fd);
     _cleanup_close_ int sfd = signalfd(-1, &mask, SFD_CLOEXEC);
     if (sfd < 0)
         err(1, "failed to create signalfd");
