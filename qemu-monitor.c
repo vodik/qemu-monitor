@@ -33,7 +33,7 @@ static void make_sigset(sigset_t *mask, ...)
     va_end(ap);
 }
 
-static void read_config(const char *config, args_t *buf, bool fullscreen, bool snapshot)
+static void read_config(const char *config, args_t *buf, pid_t ppid, bool fullscreen, bool snapshot)
 {
     FILE *fp = fopen(config, "r");
     if (fp == NULL) {
@@ -99,7 +99,7 @@ static void read_config(const char *config, args_t *buf, bool fullscreen, bool s
         free(line);
 
     args_append(buf, "-monitor", "none", "-qmp", NULL);
-    args_printf(buf, "unix:%s/monitor-%d,server", get_user_runtime_dir(), getpid());
+    args_printf(buf, "unix:%s/monitor-%d", get_user_runtime_dir(), ppid);
 }
 
 static void launch_qemu(args_t *buf)
@@ -158,19 +158,18 @@ static int qmp_socket(pid_t pid)
         struct sockaddr_un un;
     } sa;
 
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (fd < 0)
         err(1, "failed to make socket");
 
     sa.un = (struct sockaddr_un){ .sun_family = AF_UNIX };
     snprintf(sa.un.sun_path, UNIX_PATH_MAX, "%s/monitor-%d", get_user_runtime_dir(), pid);
 
-    if (connect(fd, &sa.sa, sizeof(sa)) < 0)
-        err(1, "failed to connect to monitor socket");
+    if (bind(fd, &sa.sa, sizeof(sa)) < 0)
+        err(1, "failed to bind monitor socket");
 
-    char buf[BUFSIZ];
-    read(fd, buf, sizeof(buf));
-    qmp_command(fd, "qmp_capabilities");
+    if (listen(fd, SOMAXCONN) < 0)
+        err(1, "failed to listen on monitor socket");
 
     return fd;
 }
@@ -228,6 +227,9 @@ int main(int argc, char *argv[])
     if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
         err(1, "failed to set sigprocmask");
 
+    pid_t ppid = getpid();
+    _cleanup_close_ int qmp_fd = qmp_socket(ppid);
+
     pid_t pid = fork();
     if (pid < 0) {
         err(1, "failed to fork");
@@ -236,12 +238,23 @@ int main(int argc, char *argv[])
         if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0)
             err(1, "failed to set sigprocmask");
 
-        read_config(config, &buf, fullscreen, snapshot);
+        read_config(config, &buf, ppid, fullscreen, snapshot);
         launch_qemu(&buf);
     }
 
-    sleep(1);
-    _cleanup_close_ int qmp_fd = qmp_socket(pid);
+    union {
+        struct sockaddr sa;
+        struct sockaddr_un un;
+    } sa;
+    static socklen_t sa_len = sizeof(struct sockaddr_un);
+
+    int cfd = accept4(qmp_fd, &sa.sa, &sa_len, SOCK_CLOEXEC);
+    if (cfd < 0)
+        err(EXIT_FAILURE, "failed to accept connection");
+
+    char buf_[BUFSIZ];
+    read(cfd, buf_, sizeof(buf_));
+    qmp_command(cfd, "qmp_capabilities");
 
     _cleanup_close_ int sfd = signalfd(-1, &mask, SFD_CLOEXEC);
     if (sfd < 0)
@@ -260,7 +273,7 @@ int main(int argc, char *argv[])
         case SIGQUIT:
             printf("Sending ACPI halt signal to vm...\n");
             fflush(stdout);
-            qmp_command(qmp_fd, "system_powerdown");
+            qmp_command(cfd, "system_powerdown");
             break;
         case SIGCHLD:
             switch (si.ssi_code) {
