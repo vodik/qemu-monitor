@@ -183,13 +183,7 @@ static int qmp_listen(const char *sockpath)
 
 static int qmp_accept(int fd)
 {
-    union {
-        struct sockaddr sa;
-        struct sockaddr_un un;
-    } sa;
-    static socklen_t sa_len = sizeof(struct sockaddr_un);
-
-    int cfd = accept4(fd, &sa.sa, &sa_len, SOCK_CLOEXEC);
+    int cfd = accept4(fd, NULL, NULL, SOCK_CLOEXEC);
     if (cfd < 0)
         err(EXIT_FAILURE, "failed to accept connection");
 
