@@ -12,9 +12,6 @@
 #include "qmp.h"
 #include "xdg.h"
 
-#define NEGOTIATE_CMD "{ \"execute\": \"qmp_capabilities\" }\n"
-#define SHUTDOWN_CMD "{ \"execute\": \"system_powerdown\" }\n"
-
 static void make_sigset(sigset_t *mask, ...)
 {
     va_list ap;
