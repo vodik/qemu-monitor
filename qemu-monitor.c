@@ -111,37 +111,30 @@ static void launch_qemu(args_t *buf)
     err(1, "failed to exec %s", argv[0]);
 }
 
-static int json_write(const char *buffer, size_t size, void *data)
-{
-    int *fd = data;
-    return write(*fd, buffer, size) < 0 ? -1 : 0;
-}
-
-static size_t json_read(void *buffer, size_t buflen, void *data)
-{
-    int *fd = data;
-    ssize_t nbytes_r = read(*fd, buffer, buflen);
-    if (nbytes_r < 0)
-        return (size_t)-1;
-    return (size_t)nbytes_r;
-}
-
 static int qmp_send(int fd, const char *command)
 {
     _cleanup_json_ json_t *root = json_object();
     json_object_set_new(root, "execute", json_string(command));
-    if (json_dump_callback(root, json_write, &fd, 0) < 0)
-        return -1;
+
+    _cleanup_free_ char *json = json_dumps(root, 0);
+    if (json)
+        return dprintf(fd, "%s\r\n", json);
     return 0;
 }
 
 static int qmp_recv(int fd)
 {
+    char buf[BUFSIZ];
     json_error_t error;
-    _cleanup_json_ json_t *root = json_load_callback(json_read, &fd, 0, &error);
+    ssize_t nbytes_r = read(fd, buf, sizeof(buf));
 
-    if (!root)
-        errx(1, "error on line %d: %s\n", error.line, error.text);
+    if (nbytes_r < 0) {
+        err(1, "failed to read");
+    } else if (nbytes_r == 0) {
+        return 0;
+    }
+
+    _cleanup_json_ json_t *root = json_loadb(buf, nbytes_r, 0, &error);
 
     json_t *name = json_object_get(root, "return");
     if (!json_is_array(name))
