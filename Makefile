@@ -5,6 +5,7 @@ CFLAGS := -std=c11 \
 	${CFLAGS}
 
 LDLIBS = -ljansson
+VPATH = src
 
 qemu-monitor: qemu-monitor.o qmp.o argbuilder.o config.o xdg.o util.o
 
