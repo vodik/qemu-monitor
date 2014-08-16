@@ -152,6 +152,7 @@ int main(int argc, char *argv[])
     const char *config = argv[optind];
     if (!config)
         errx(1, "config not set");
+    read_config(config, &buf, sockpath, fullscreen, snapshot);
 
     sigset_t mask;
     make_sigset(&mask, SIGCHLD, SIGTERM, SIGINT, SIGQUIT, 0);
@@ -166,8 +167,6 @@ int main(int argc, char *argv[])
         setsid();
         if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0)
             err(1, "failed to set sigprocmask");
-
-        read_config(config, &buf, sockpath, fullscreen, snapshot);
         launch_qemu(&buf);
     }
 
