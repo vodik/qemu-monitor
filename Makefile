@@ -6,7 +6,7 @@ CFLAGS := -std=c11 \
 
 LDLIBS = -ljansson
 
-qemu-monitor: qemu-monitor.o argbuilder.o config.o xdg.o util.o
+qemu-monitor: qemu-monitor.o qmp.o argbuilder.o config.o xdg.o util.o
 
 clean:
 	${RM} qemu-monitor *.o
