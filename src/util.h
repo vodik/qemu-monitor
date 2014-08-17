@@ -13,10 +13,12 @@
 #define _printf_(a,b)       __attribute__((format (printf, a, b)))
 #define _cleanup_free_      _cleanup_(freep)
 #define _cleanup_close_     _cleanup_(closep)
+#define _cleanup_fclose_    _cleanup_(fclosep)
 #define _cleanup_json_      _cleanup_(json_decrefp)
 
 static inline void freep(void *p) { free(*(void **)p); }
 static inline void closep(int *fd) { if (*fd >= 0) close(*fd); }
+static inline void fclosep(FILE **fp) { if (*fp) fclose(*fp); }
 static inline void json_decrefp(json_t **p) { if (*p) json_decref(*p); }
 
 static inline void *zero(void *s, size_t n) { return memset(s, 0, n); }

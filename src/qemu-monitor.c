@@ -27,14 +27,22 @@ static void make_sigset(sigset_t *mask, ...)
 
 static void read_config(const char *config, args_t *buf, const char *sockpath, bool fullscreen, bool snapshot)
 {
-    FILE *fp = fopen(config, "r");
-    if (fp == NULL) {
+    _cleanup_fclose_ FILE *fp = NULL;
+
+    if (access(config, F_OK) < 0) {
+        if (errno != ENOENT)
+            err(1, "couldn't open %s", config);
+
         _cleanup_free_ char *profile = NULL;
 
         asprintf(&profile, "%s/vm/%s.conf", get_user_config_dir(), config);
         fp = fopen(profile, "r");
         if (fp == NULL)
-            err(1, "couldn't open %s or %s", config, profile);
+            err(1, "couldn't open %s", profile);
+    } else {
+        fp = fopen(config, "r");
+        if (fp == NULL)
+            err(1, "couldn't open %s", config);
     }
 
     char *line = NULL;
