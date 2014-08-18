@@ -18,6 +18,7 @@ struct qemu_config_t {
     char *memory;
     char *memory_file;
     char *disk;
+    char *disk_interface;
     char *net_interface;
     char *net_model;
     char *rtc;
@@ -82,6 +83,8 @@ static void read_config(const char *config_file, struct qemu_config_t *config)
             config->memory_file = strdup(value);
         } else if (streq(key, "Disk")) {
             config->disk = strdup(value);
+        } else if (streq(key, "DiskInterface")) {
+            config->disk_interface = strdup(value);
         } else if (streq(key, "NetInterface")) {
             config->net_interface = strdup(value);
         } else if (streq(key, "NetModel")) {
@@ -115,7 +118,10 @@ static void launch_qemu(struct qemu_config_t *config, const char *sockpath)
 
     if (config->disk) {
         args_printf(&buf, "-drive");
-        args_printf(&buf, "file=%s,if=virtio,index=0,media=disk,cache=none", config->disk);
+        if (config->disk_interface)
+            args_printf(&buf, "file=%s,if=%s,index=0,media=disk,cache=none", config->disk, config->disk_interface);
+        else
+            args_printf(&buf, "file=%s,index=0,media=disk,cache=none", config->disk);
     }
 
     if (config->net_interface) {
