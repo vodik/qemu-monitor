@@ -12,6 +12,22 @@
 #include "qmp.h"
 #include "xdg.h"
 
+struct qemu_config_t {
+    char *cpu;
+    char *smp;
+    char *memory;
+    char *memory_file;
+    char *disk;
+    char *net_interface;
+    char *net_model;
+    char *rtc;
+    char *graphics;
+    char *soundhw;
+
+    bool fullscreen;
+    bool snapshot;
+};
+
 static void make_sigset(sigset_t *mask, ...)
 {
     va_list ap;
@@ -25,32 +41,29 @@ static void make_sigset(sigset_t *mask, ...)
     va_end(ap);
 }
 
-static void read_config(const char *config, args_t *buf, const char *sockpath, bool fullscreen, bool snapshot)
+static void read_config(const char *config_file, struct qemu_config_t *config)
 {
     _cleanup_fclose_ FILE *fp = NULL;
 
-    if (access(config, F_OK) < 0) {
+    if (access(config_file, F_OK) < 0) {
         if (errno != ENOENT)
-            err(1, "couldn't open %s", config);
+            err(1, "couldn't open %s", config_file);
 
         _cleanup_free_ char *profile = NULL;
 
-        asprintf(&profile, "%s/vm/%s.conf", get_user_config_dir(), config);
+        asprintf(&profile, "%s/vm/%s.conf", get_user_config_dir(), config_file);
         fp = fopen(profile, "r");
         if (fp == NULL)
             err(1, "couldn't open %s", profile);
     } else {
-        fp = fopen(config, "r");
+        fp = fopen(config_file, "r");
         if (fp == NULL)
-            err(1, "couldn't open %s", config);
+            err(1, "couldn't open %s", config_file);
     }
 
-    char *line = NULL;
+    _cleanup_free_ char *line = NULL;
     size_t len = 0;
     ssize_t read;
-
-    args_init(buf, 32);
-    args_append(buf, "qemu-system-x86_64", "-enable-kvm", NULL);
 
     while ((read = getline(&line, &len, fp)) != -1) {
         _cleanup_free_ char *key = NULL, *value = NULL;
@@ -60,53 +73,84 @@ static void read_config(const char *config, args_t *buf, const char *sockpath, b
             continue;
 
         if (streq(key, "CPU")) {
-            args_append(buf, "-cpu", value, NULL);
+            config->cpu = strdup(value);
         } else if (streq(key, "SMP")) {
-            args_append(buf, "-smp", value, NULL);
+            config->smp = strdup(value);
         } else if (streq(key, "Memory")) {
-            args_append(buf, "-m", value, NULL);
+            config->memory = strdup(value);
         } else if (streq(key, "MemoryFile")) {
-            args_append(buf, "-mem-path", value, NULL);
+            config->memory_file = strdup(value);
         } else if (streq(key, "Disk")) {
-            args_printf(buf, "-drive");
-            args_printf(buf, "file=%s,if=virtio,index=0,media=disk,cache=none", value);
+            config->disk = strdup(value);
         } else if (streq(key, "NetInterface")) {
-            args_printf(buf, "-net");
-            args_printf(buf, "tap,ifname=%s,script=no,downscript=no", value);
+            config->net_interface = strdup(value);
         } else if (streq(key, "NetModel")) {
-            args_printf(buf, "-net");
-            args_printf(buf, "nic,model=%s", value);
+            config->net_model = strdup(value);
         } else if (streq(key, "RealTimeClock")) {
-            args_printf(buf, "-rtc");
-            args_printf(buf, "base=%s", value);
+            config->rtc = strdup(value);
         } else if (streq(key, "Graphics")) {
-            if (streq(value, "none")) {
-                args_append(buf, "-nographic", NULL);
-            } else {
-                args_append(buf, "-vga", value, NULL);
-            }
+            config->graphics = strdup(value);
         } else if (streq(key, "SoundHardware")) {
-            args_append(buf, "-soundhw", value, NULL);
+            config->soundhw = strdup(value);
         }
     }
-
-    if (fullscreen)
-        args_append(buf, "-full-screen", NULL);
-    if (snapshot)
-        args_append(buf, "-snapshot", NULL);
-
-    if (line)
-        free(line);
-
-    args_append(buf, "-monitor", "none", "-qmp", NULL);
-    args_printf(buf, "unix:%s", sockpath);
 }
 
-static void launch_qemu(args_t *buf)
+static void launch_qemu(struct qemu_config_t *config, const char *sockpath)
 {
     char **argv;
+    args_t buf;
 
-    args_build_argv(buf, &argv);
+    args_init(&buf, 32);
+    args_append(&buf, "qemu-system-x86_64", "-enable-kvm", NULL);
+
+    if (config->cpu)
+        args_append(&buf, "-cpu", config->cpu, NULL);
+    if (config->smp)
+        args_append(&buf, "-smp", config->smp, NULL);
+    if (config->memory)
+        args_append(&buf, "-m", config->memory, NULL);
+    if (config->memory_file)
+        args_append(&buf, "-mem-path", config->memory_file, NULL);
+
+    if (config->disk) {
+        args_printf(&buf, "-drive");
+        args_printf(&buf, "file=%s,if=virtio,index=0,media=disk,cache=none", config->disk);
+    }
+
+    if (config->net_interface) {
+        args_printf(&buf, "-net");
+        args_printf(&buf, "tap,ifname=%s,script=no,downscript=no", config->net_interface);
+    }
+
+    if (config->net_model) {
+        args_printf(&buf, "-net");
+        args_printf(&buf, "nic,model=%s", config->net_model);
+    }
+
+    if (config->rtc) {
+        args_printf(&buf, "-rtc");
+        args_printf(&buf, "base=%s", config->rtc);
+    }
+
+    if (config->graphics) {
+        if (streq(config->graphics, "none"))
+            args_append(&buf, "-nographic", NULL);
+        else
+            args_append(&buf, "-vga", config->graphics, NULL);
+    }
+
+    if (config->soundhw)
+        args_append(&buf, "-soundhw", config->soundhw, NULL);
+    if (config->fullscreen)
+        args_append(&buf, "-full-screen", NULL);
+    if (config->snapshot)
+        args_append(&buf, "-snapshot", NULL);
+
+    args_append(&buf, "-monitor", "none", "-qmp", NULL);
+    args_printf(&buf, "unix:%s", sockpath);
+
+    args_build_argv(&buf, &argv);
     execvp(argv[0], argv);
     err(1, "failed to exec %s", argv[0]);
 }
@@ -124,8 +168,7 @@ static _noreturn_ void usage(FILE *out)
 
 int main(int argc, char *argv[])
 {
-    bool fullscreen = false, snapshot = false;
-    args_t buf;
+    struct qemu_config_t config;
 
     static const struct option opts[] = {
         { "help",       no_argument, 0, 'h' },
@@ -133,6 +176,8 @@ int main(int argc, char *argv[])
         { "snapshot",   no_argument, 0, 's' },
         { 0, 0, 0, 0 }
     };
+
+    zero(&config, sizeof(struct qemu_config_t));
 
     for (;;) {
         int opt = getopt_long(argc, argv, "hfs", opts, NULL);
@@ -144,10 +189,10 @@ int main(int argc, char *argv[])
             usage(stdout);
             break;
         case 'f':
-            fullscreen = true;
+            config.fullscreen = true;
             break;
         case 's':
-            snapshot = true;
+            config.snapshot = true;
             break;
         default:
             usage(stderr);
@@ -157,10 +202,10 @@ int main(int argc, char *argv[])
     _cleanup_free_ char *sockpath = qmp_sockpath();
     _cleanup_close_ int qmp_fd = qmp_listen(sockpath);
 
-    const char *config = argv[optind];
-    if (!config)
+    const char *config_file = argv[optind];
+    if (!config_file)
         errx(1, "config not set");
-    read_config(config, &buf, sockpath, fullscreen, snapshot);
+    read_config(config_file, &config);
 
     sigset_t mask;
     make_sigset(&mask, SIGCHLD, SIGTERM, SIGINT, SIGQUIT, 0);
@@ -175,7 +220,7 @@ int main(int argc, char *argv[])
         setsid();
         if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0)
             err(1, "failed to set sigprocmask");
-        launch_qemu(&buf);
+        launch_qemu(&config, sockpath);
     }
 
     _cleanup_close_ int cfd = qmp_accept(qmp_fd);
