@@ -214,7 +214,7 @@ int main(int argc, char *argv[])
     read_config(config_file, &config);
 
     sigset_t mask;
-    make_sigset(&mask, SIGCHLD, SIGTERM, SIGINT, SIGQUIT, 0);
+    make_sigset(&mask, SIGCHLD, SIGTERM, SIGINT, 0);
 
     if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
         err(1, "failed to set sigprocmask");
@@ -244,7 +244,6 @@ int main(int argc, char *argv[])
         switch (si.ssi_signo) {
         case SIGINT:
         case SIGTERM:
-        case SIGQUIT:
             printf("Sending ACPI halt signal to vm...\n");
             fflush(stdout);
             qmp_command(cfd, "system_powerdown");
