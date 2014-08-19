@@ -24,6 +24,7 @@ struct qemu_config_t {
     char *rtc;
     char *graphics;
     char *soundhw;
+    char *serial;
 
     bool fullscreen;
     bool snapshot;
@@ -95,7 +96,10 @@ static void read_config(const char *config_file, struct qemu_config_t *config)
             config->graphics = strdup(value);
         } else if (streq(key, "SoundHardware")) {
             config->soundhw = strdup(value);
+        } else if (streq(key, "SerialPort")) {
+            config->serial = strdup(value);
         }
+
     }
 }
 
@@ -115,6 +119,8 @@ static void launch_qemu(struct qemu_config_t *config, const char *sockpath)
         args_append(&buf, "-m", config->memory, NULL);
     if (config->memory_file)
         args_append(&buf, "-mem-path", config->memory_file, NULL);
+    if (config->serial)
+        args_append(&buf, "-serial", config->serial, NULL);
 
     if (config->disk) {
         args_printf(&buf, "-drive");
