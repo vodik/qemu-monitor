@@ -238,8 +238,6 @@ static int loop(int qmp_fd)
 
 int main(int argc, char *argv[])
 {
-    struct qemu_config_t config;
-
     static const struct option opts[] = {
         { "help",       no_argument, 0, 'h' },
         { "fullscreen", no_argument, 0, 'f' },
@@ -247,7 +245,10 @@ int main(int argc, char *argv[])
         { 0, 0, 0, 0 }
     };
 
-    zero(&config, sizeof(struct qemu_config_t));
+    struct qemu_config_t config = {
+        .fullscreen = false,
+        .snapshot = false
+    };
 
     for (;;) {
         int opt = getopt_long(argc, argv, "hfs", opts, NULL);
