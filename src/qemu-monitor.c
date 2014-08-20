@@ -178,6 +178,46 @@ static _noreturn_ void usage(FILE *out)
     exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
+static int loop(int sfd, int qmp_fd)
+{
+    _cleanup_close_ int cfd = qmp_accept(qmp_fd);
+    if (sfd < 0)
+        err(1, "failed to create signalfd");
+
+    for (;;) {
+        struct signalfd_siginfo si;
+
+        ssize_t nbytes_r = read(sfd, &si, sizeof(si));
+        if (nbytes_r < 0)
+            err(EXIT_FAILURE, "failed to read signal");
+
+        switch (si.ssi_signo) {
+        case SIGINT:
+        case SIGTERM:
+            printf("Sending ACPI halt signal to vm...\n");
+            fflush(stdout);
+            qmp_command(cfd, "system_powerdown");
+            break;
+        case SIGCHLD:
+            switch (si.ssi_code) {
+            case CLD_EXITED:
+                if (si.ssi_status)
+                    warnx("application terminated with error code %d", si.ssi_status);
+                return si.ssi_status;
+            case CLD_KILLED:
+            case CLD_DUMPED:
+                errx(1, "application terminated abnormally with signal %d (%s)",
+                     si.ssi_status, strsignal(si.ssi_status));
+            case CLD_TRAPPED:
+            case CLD_STOPPED:
+            default:
+                break;
+            }
+            return 0;
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     struct qemu_config_t config;
@@ -235,41 +275,7 @@ int main(int argc, char *argv[])
         launch_qemu(&config, sockpath);
     }
 
-    _cleanup_close_ int cfd = qmp_accept(qmp_fd);
     _cleanup_close_ int sfd = signalfd(-1, &mask, SFD_CLOEXEC);
-    if (sfd < 0)
-        err(1, "failed to create signalfd");
 
-    for (;;) {
-        struct signalfd_siginfo si;
-
-        ssize_t nbytes_r = read(sfd, &si, sizeof(si));
-        if (nbytes_r < 0)
-            err(EXIT_FAILURE, "failed to read signal");
-
-        switch (si.ssi_signo) {
-        case SIGINT:
-        case SIGTERM:
-            printf("Sending ACPI halt signal to vm...\n");
-            fflush(stdout);
-            qmp_command(cfd, "system_powerdown");
-            break;
-        case SIGCHLD:
-            switch (si.ssi_code) {
-            case CLD_EXITED:
-                if (si.ssi_status)
-                    warnx("application terminated with error code %d", si.ssi_status);
-                return si.ssi_status;
-            case CLD_KILLED:
-            case CLD_DUMPED:
-                errx(1, "application terminated abnormally with signal %d (%s)",
-                     si.ssi_status, strsignal(si.ssi_status));
-            case CLD_TRAPPED:
-            case CLD_STOPPED:
-            default:
-                break;
-            }
-            return 0;
-        }
-    }
+    return loop(sfd, qmp_fd);
 }
