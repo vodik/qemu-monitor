@@ -30,16 +30,18 @@ struct qemu_config_t {
     bool snapshot;
 };
 
-static void make_sigset(sigset_t *mask, ...)
+static sigset_t mask;
+
+static void make_sigset(sigset_t *set, ...)
 {
     va_list ap;
     int signum;
 
-    sigemptyset(mask);
+    sigemptyset(set);
 
-    va_start(ap, mask);
+    va_start(ap, set);
     while ((signum = va_arg(ap, int)))
-        sigaddset(mask, signum);
+        sigaddset(set, signum);
     va_end(ap);
 }
 
@@ -167,6 +169,21 @@ static void launch_qemu(struct qemu_config_t *config, const char *sockpath)
     err(1, "failed to exec %s", argv[0]);
 }
 
+static pid_t fork_qemu(struct qemu_config_t *config, const char *sockpath)
+{
+    pid_t pid = fork();
+    if (pid < 0) {
+        err(1, "failed to fork");
+    } else if (pid == 0) {
+        setsid();
+        if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0)
+            err(1, "failed to set sigprocmask");
+        launch_qemu(config, sockpath);
+    }
+
+    return pid;
+}
+
 static _noreturn_ void usage(FILE *out)
 {
     fprintf(out, "usage: %s [options] <profile>\n", program_invocation_short_name);
@@ -178,8 +195,9 @@ static _noreturn_ void usage(FILE *out)
     exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
-static int loop(int sfd, int qmp_fd)
+static int loop(int qmp_fd)
 {
+    _cleanup_close_ int sfd = signalfd(-1, &mask, SFD_CLOEXEC);
     _cleanup_close_ int cfd = qmp_accept(qmp_fd);
     if (sfd < 0)
         err(1, "failed to create signalfd");
@@ -259,23 +277,11 @@ int main(int argc, char *argv[])
         errx(1, "config not set");
     read_config(config_file, &config);
 
-    sigset_t mask;
     make_sigset(&mask, SIGCHLD, SIGTERM, SIGINT, 0);
 
     if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
         err(1, "failed to set sigprocmask");
 
-    pid_t pid = fork();
-    if (pid < 0) {
-        err(1, "failed to fork");
-    } else if (pid == 0) {
-        setsid();
-        if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0)
-            err(1, "failed to set sigprocmask");
-        launch_qemu(&config, sockpath);
-    }
-
-    _cleanup_close_ int sfd = signalfd(-1, &mask, SFD_CLOEXEC);
-
-    return loop(sfd, qmp_fd);
+    fork_qemu(&config, sockpath);
+    return loop(qmp_fd);
 }
