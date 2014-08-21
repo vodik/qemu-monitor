@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <err.h>
 #include <signal.h>
+#include <poll.h>
 #include <sys/signalfd.h>
 
 #include "argbuilder.h"
@@ -202,7 +203,25 @@ static int loop(int qmp_fd)
     if (sfd < 0)
         err(1, "failed to create signalfd");
 
-    for (;;) {
+    struct pollfd fds[] = {
+        { .fd = sfd, .events = POLLIN }
+    };
+    const size_t fd_count = sizeof(fds) / sizeof(fds[0]);
+
+    while (true) {
+        int ret = poll(fds, fd_count, -1);
+
+        if (ret == 0) {
+            continue;
+        } else if (ret < 0) {
+            if (errno == EINTR)
+                continue;
+            err(EXIT_FAILURE, "failed to poll");
+        }
+
+        if (!(fds[0].revents & POLLIN))
+            continue;
+
         struct signalfd_siginfo si;
 
         ssize_t nbytes_r = read(sfd, &si, sizeof(si));
