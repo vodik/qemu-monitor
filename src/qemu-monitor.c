@@ -22,6 +22,7 @@ struct qemu_config_t {
     char *disk_interface;
     char *net_interface;
     char *net_model;
+    char *net_macaddr;
     char *rtc;
     char *graphics;
     char *soundhw;
@@ -32,6 +33,20 @@ struct qemu_config_t {
 };
 
 static sigset_t mask;
+
+static char *random_mac(void)
+{
+    char *macaddr;
+    uint8_t addr[3];
+
+    FILE *urandom = fopen("/dev/urandom", "r");
+    fread(addr, sizeof(uint8_t), 3, urandom);
+    fclose(urandom);
+
+    asprintf(&macaddr, "52:54:00:%02x:%02x:%02x",
+             addr[0], addr[1], addr[2]);
+    return macaddr;
+}
 
 static void make_sigset(sigset_t *set, ...)
 {
@@ -93,6 +108,8 @@ static void read_config(const char *config_file, struct qemu_config_t *config)
             config->net_interface = strdup(value);
         } else if (streq(key, "NetModel")) {
             config->net_model = strdup(value);
+        } else if (streq(key, "NetMacAddress")) {
+            config->net_macaddr = strdup(value);
         } else if (streq(key, "RealTimeClock")) {
             config->rtc = strdup(value);
         } else if (streq(key, "Graphics")) {
@@ -104,6 +121,10 @@ static void read_config(const char *config_file, struct qemu_config_t *config)
         }
 
     }
+
+    /* if mac address isn't set, generate a random one */
+    if (!config->net_macaddr)
+        config->net_macaddr = random_mac();
 }
 
 static void launch_qemu(struct qemu_config_t *config, const char *sockpath)
@@ -140,7 +161,7 @@ static void launch_qemu(struct qemu_config_t *config, const char *sockpath)
 
     if (config->net_model) {
         args_printf(&buf, "-net");
-        args_printf(&buf, "nic,model=%s", config->net_model);
+        args_printf(&buf, "nic,model=%s,macaddr=%s", config->net_model, config->net_macaddr);
     }
 
     if (config->rtc) {
